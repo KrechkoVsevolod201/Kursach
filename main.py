@@ -9,8 +9,9 @@ def half_method():
     a1 = 0.00001
     b1 = np.pi/2
     eps = 0.00001
+    g = 1
     root = []
-    fz = lambda z: (np.tan(z) - 1/z)
+    fz = lambda z: (np.tan(z) - g/z)
     # открываем новый файл на запись
     workbook = xlsxwriter.Workbook('z.xlsx')
     # создаем там "лист"
