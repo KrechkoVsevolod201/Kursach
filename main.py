@@ -13,7 +13,7 @@ def half_method():
     root = []
     fz = lambda z: (np.tan(z) - g/z)
     # открываем новый файл на запись
-    workbook = xlsxwriter.Workbook('z.xlsx')
+    workbook = xlsxwriter.Workbook('C:\\Users\\GachiBoy\\Desktop\\информатика\\ЧММФ\\z.xlsx')
     # создаем там "лист"
     worksheet = workbook.add_worksheet()
     # в ячейку A1 пишем текст
