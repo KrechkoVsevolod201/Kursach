@@ -38,5 +38,6 @@ if __name__ == '__main__':
     φ = φ_n(μ)
 
     df = pd.DataFrame({'μ': μ, 'φ': φ})
+    df.index = df.index + 1
     print(df.to_string())
     df.to_csv('values.csv')
