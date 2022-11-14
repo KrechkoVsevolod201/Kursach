@@ -1,53 +1,42 @@
-import matplotlib.pyplot as plt
+import csv
+import pandas as pd
 import numpy as np
-import xlsxwriter
-# Если автоимпорт не работает, то надо прописать в терминале "pip install XlsxWriter"
+
+eps = 0.00001
 
 
-def half_method():
-    n = 100
-    a1 = 0.00001
-    b1 = np.pi/2
-    eps = 0.00001
-    g = 1
-    root = []
-    fz = lambda z: (np.tan(z) - g/z)
-    # открываем новый файл на запись
-    workbook = xlsxwriter.Workbook('C:\\Users\\GachiBoy\\Desktop\\информатика\\ЧММФ\\z.xlsx')
-    # создаем там "лист"
-    worksheet = workbook.add_worksheet()
-    # в ячейку A1 пишем текст
-    worksheet.write('A1', 'Корни z')
-    while n > 0:
-        a = a1
-        b = b1
+def φ_n(μ: list) -> np.ndarray:
+    return 4 * 16 * np.sin(2 * np.array(μ)) / (12 * np.array(μ) + 2 * np.sin(np.array(μ) * 12))
+
+
+def half_method(n: int, a1: float, b1: float) -> list:
+    μ = list()
+
+    def find_c(a: float, b: float) -> float:
+        G = 1
+        fz = lambda z: (np.tan(z) - G / z)
+        c = (a + b) / 2
         while np.abs(a - b) > eps:
-            c = (a + b) / 2
             if (fz(c) * fz(a)) < 0:
                 b = c
             else:
                 a = c
-        root.insert(100 - n, c)
-        # в ячейку A пишем текст
-        worksheet.write('A' + str(100-n+2), c)
-        a1 = a1 + np.pi
-        b1 = b1 + np.pi
-        n = n - 1
-    print(root)
+            c = (a + b) / 2
+        return c
 
-    # сохраняем и закрываем
-    workbook.close()
-
-
-def plotter():
-    fz1 = lambda z: (np.tan(z))
-    fz2 = lambda z: (-1/z)
-    z = np.linspace(-10, 10, 100000)
-    plt.plot(z, fz1(z))
-    plt.plot(z, fz2(z))
-    plt.grid(True)
-    plt.show()
+    while n > 0:
+        c = find_c(a1, b1)
+        μ.append(c)
+        a1 += np.pi
+        b1 += np.pi
+        n -= 1
+    return μ
 
 
 if __name__ == '__main__':
-    half_method()
+    μ = half_method(100, 0.000001, np.pi / 2)
+    φ = φ_n(μ)
+
+    df = pd.DataFrame({'μ': μ, 'φ': φ})
+    print(df.to_string())
+    df.to_csv('values.csv')
