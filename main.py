@@ -49,6 +49,19 @@ def half_method(n: int, a1: float, b1: float) -> np.ndarray:
     return np.array(z)
 
 
+def P_n_sum(n, root_φ, root_z):
+    p_n_sum = 0
+    while n > 0:
+        z_list = root_z
+        φ_list = root_φ
+        z = z_list[n-1]
+        φ = φ_list[n-1]
+        p_n_sum = p_n_sum + P_n(z, φ)
+        print(p_n_sum)
+        n -= 1
+    return p_n_sum
+
+
 if __name__ == '__main__':
     n = 10
     z = half_method(n, 0.000001, np.pi / 2)
@@ -58,5 +71,5 @@ if __name__ == '__main__':
     df.index = df.index + 1
     print(df.to_string())
     df.to_csv('values.csv')
-    print()
+    print(P_n_sum(n, z, φ))
     print(P_n(z, φ))
