@@ -1,7 +1,8 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sympy
-from sympy import symbols, integrate
+from sympy import N
 
 eps = 0.00001
 
@@ -14,21 +15,13 @@ R = 1  # ? Узанть коэф-т
 
 
 def φ_n(z: list) -> np.array:
-    return np.array(16 * np.sin(4 * np.array(z) / l) / (np.array(z) + np.sin(2 * np.array(z))))
-
-
-def P_n(z, φ, t1=0, t_=1):
-    t2 = T / 10
-    t = symbols('t')
-    return φ * sympy.exp(4 * (z ** 2) / c / (l ** 2) * (k + 2 * α / (c * R))) * integrate(sympy.exp(t), (t, t1, t2)) \
-           - φ * integrate(t, (t, t1, t2)) * sympy.exp(-4 * (z ** 2) / c / (l ** 2) * (k + 2 * α / (c * R)) * t_)
+    return np.array(2 * 16 * np.sin(4 * np.array(z) / l) / (np.array(z) + np.sin(2 * np.array(z))))
 
 
 def half_method(n: int, a1: float, b1: float) -> np.ndarray:
     z = list()
 
     def find_c(a: float, b: float) -> float:
-
         G = α / (c * l)
         fz = lambda z: (np.tan(z) - G / z)
         root = (a + b) / 2
@@ -49,17 +42,27 @@ def half_method(n: int, a1: float, b1: float) -> np.ndarray:
     return np.array(z)
 
 
-def P_n_sum(n, root_φ, root_z):
-    p_n_sum = 0
-    while n > 0:
-        z_list = root_z
-        φ_list = root_φ
-        z = z_list[n-1]
-        φ = φ_list[n-1]
-        p_n_sum = p_n_sum + P_n(z, φ)
-        print(p_n_sum)
-        n -= 1
-    return p_n_sum
+def w_n(z, φ, t_=1, ti=1 / 100, y=0):
+    def P_n(zi, φi, t):
+        return φi * (1 - sympy.exp(-1 * (((k / c) ** 2) * 4 * zi ** 2 / l ** 2 + 2 * α / R / (c ** 2)) * t)) / c / (
+                ((k / c) ** 2) * 4 * zi ** 2 / l ** 2 + 2 * α / R / (c ** 2))
+
+    def w(z, φ, t_, y_):
+        s = list()
+        for zi, φi in zip(z, φ):
+            s.append(N(P_n(zi, φi, t_) * sympy.cos(((2 * zi / l) * y_))))
+        return sum(s)
+
+    t_list = np.arange(0.0, t_ + ti, ti)
+
+    s = list(map(lambda x: w(z, φ, x, y), t_list))
+
+    return [s, t_list]
+
+
+def plotter(wi, ti):
+    plt.plot(ti, wi)
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -69,7 +72,7 @@ if __name__ == '__main__':
 
     df = pd.DataFrame({'z': z, 'φ': φ})
     df.index = df.index + 1
-    print(df.to_string())
+    # print(df.to_string())
     df.to_csv('values.csv')
-    print(P_n_sum(n, z, φ))
-    print(P_n(z, φ))
+    [solution, t_i] = w_n(z, φ, 10, 1 / 10, 1)
+    plotter(solution, t_i)
