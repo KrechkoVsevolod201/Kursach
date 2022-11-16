@@ -42,26 +42,33 @@ def half_method(n: int, a1: float, b1: float) -> np.ndarray:
     return np.array(z)
 
 
-def w_n(z, φ, t_=1, ti=1 / 100, y=0):
-    def P_n(zi, φi, t):
-        return φi * (1 - sympy.exp(-1 * (((k / c) ** 2) * 4 * zi ** 2 / l ** 2 + 2 * α / R / (c ** 2)) * t)) / c / (
-                ((k / c) ** 2) * 4 * zi ** 2 / l ** 2 + 2 * α / R / (c ** 2))
+a2 = (k / c) ** 2
+aRc = 2 * α / R / (c ** 2)
+q = lambda zi: -1 * a2 * 4 * (zi ** 2) / (l ** 2)
+q1 = lambda zi: a2 * 4 * zi ** 2 / l ** 2
 
-    def w(z, φ, t_, y_):
+
+def w_n(z, φ, time=1, th=1 / 100, y=0):
+    def P_n(zi, φi, t):
+        return (φi * 4 * (1 - sympy.exp(q(zi) + aRc * t)) / (c * l)) / (q1(zi) + aRc)
+
+    def w(z, φ, ti, y):
         s = list()
+
         for zi, φi in zip(z, φ):
-            s.append(N(P_n(zi, φi, t_) * sympy.cos(((2 * zi / l) * y_))))
+            s.append(N(P_n(zi, φi, ti) * sympy.cos(((2 * zi / l) * y))))
         return sum(s)
 
-    t_list = np.arange(0.0, t_ + ti, ti)
+    t_list = np.arange(0.0, time + th, th)
 
-    s = list(map(lambda x: w(z, φ, x, y), t_list))
+    s = list(map(lambda ti: w(z, φ, ti, y), t_list))
 
     return [s, t_list]
 
 
 def plotter(wi, ti):
     plt.plot(ti, wi)
+    plt.grid()
     plt.show()
 
 
@@ -69,10 +76,9 @@ if __name__ == '__main__':
     n = 10
     z = half_method(n, 0.000001, np.pi / 2)
     φ = φ_n(z)
-
     df = pd.DataFrame({'z': z, 'φ': φ})
     df.index = df.index + 1
     # print(df.to_string())
     df.to_csv('values.csv')
-    [solution, t_i] = w_n(z, φ, 10, 1 / 10, 1)
+    [solution, t_i] = w_n(z, φ, 10, 1 / 10, 0)
     plotter(solution, t_i)
