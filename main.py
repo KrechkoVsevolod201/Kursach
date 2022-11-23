@@ -11,20 +11,15 @@ c = 1.65  # Дж/(cм^3*град)
 l = 12  # см
 T = 250  # с
 k = 0.59  # Вт/(см*град)
-R = 0.1  # ? Узанть коэф-т
+R = 1
 
 
 def φ_n(z: list) -> np.array:
     z = np.array(z)
-    x = sympy.Symbol('x')
-    lis = list()
 
-    for zi in z:
-        lis.append(
-            (4 * sympy.integrate(sympy.cos((2 * zi / l) * x), (x, 6, 8))) / (
-                    2 * zi + 2 * sympy.sin(2 * zi)))
-    return np.array(lis)
-    # return np.array(2 * 16 * np.sin(4 * np.array(z) / l) / (np.array(z) + np.sin(2 * np.array(z))))
+    x1, x2 = 6, 8
+    return np.array(
+        4 * 16 * (np.sin((x2 - l / 2) * 2 * z / l) - np.sin((x1 - l / 2) * 2 * z / l)) / (2 * z + np.sin(2 * z)))
 
 
 def half_method(n: int, a1: float, b1: float) -> np.ndarray:
@@ -56,7 +51,7 @@ aRc = (2 * α / R) / (c ** 2)
 q = lambda zi: a2 * 4 * (zi ** 2) / (l ** 2)
 
 
-def w_n(z, φ, time=1, th=1 / 100, x=0):
+def w_n(z, φ, time=1, x=12, hx=1 / 10):
     def P_n(zi, φi, t):
         return (φi * 4 * (1 - sympy.exp(-1 * ((q(zi) + aRc) * t))) / (q(zi) + aRc)) / (c * l)
 
@@ -67,16 +62,22 @@ def w_n(z, φ, time=1, th=1 / 100, x=0):
             s.append(N(P_n(zi, φi, ti) * sympy.cos(((2 * zi / l) * (x - l / 2)))))
         return sum(s)
 
-    t_list = np.arange(0.0, time + th, th)
+    x_list = np.arange(0.0, x + hx, hx)
 
-    s = list(map(lambda ti: w(z, φ, ti, x), t_list))
+    s = list(map(lambda xi: w(z, φ, time, xi), x_list))
 
-    return [s, t_list]
+    return [s, x_list]
 
 
 def plotter(wi, ti):
-    plt.plot(ti, wi)
-    plt.grid()
+    fig, ax = plt.subplots()
+
+    ax.plot(ti, wi)
+    ax.grid()
+
+    #  Добавляем подписи к осям:
+    ax.set_xlabel('Координата Х, См')
+    ax.set_ylabel('Температура w, Кельвин')
     plt.show()
 
 
@@ -89,5 +90,6 @@ if __name__ == '__main__':
     print(df.to_string())
     df.to_csv('values.csv')
 
-    [solution, t_i] = w_n(z, φ, 250, 1 / 10, 3)
-    plotter(solution, t_i)
+    [solution, x_i] = w_n(z, φ, 60, 12)
+
+    plotter(solution, x_i)
