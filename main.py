@@ -48,6 +48,7 @@ def half_method(n: int, a1: float, b1: float) -> np.ndarray:
 
 a2 = (k / c) ** 2
 aRc = (2 * α / R) / (c ** 2)
+Rn = lambda n: 128 / ((c * l ** 2) * ((n + 1 / 2) ** 2) * sympy.pi ** 3) / α ** 2
 q = lambda zi: a2 * 4 * (zi ** 2) / (l ** 2)
 
 
@@ -82,14 +83,18 @@ def plotter(wi, ti):
 
 
 if __name__ == '__main__':
-    n = 10
-    z = half_method(n, 0.000001, np.pi / 2)
-    φ = φ_n(z)
-    df = pd.DataFrame({'z': z, 'φ': φ})
-    df.index = df.index + 1
-    print(df.to_string())
-    df.to_csv('values.csv')
+    n = 238
+    while True:
+        z = half_method(n, 0.000001, np.pi / 2)
+        φ = φ_n(z)
+        df = pd.DataFrame({'z': z, 'φ': φ})
+        df.index = df.index + 1
+        # print(df.to_string())
+        df.to_csv('values.csv')
+        [solution, x_i] = w_n(z, φ, 60, 12)
+        if N(Rn(n + 1)) / sum(solution) < eps:
+            break
+        n += 1
 
-    [solution, x_i] = w_n(z, φ, 60, 12)
-
+    print("n = ", n)
     plotter(solution, x_i)
