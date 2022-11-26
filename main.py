@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import sympy
 from sympy import N
+from multiprocessing.pool import ThreadPool
 
 eps = 0.00001
 
@@ -51,8 +52,11 @@ aRc = (2 * α / R) / (c ** 2)
 Rn = lambda n: 128 / ((c * l ** 2) * ((n + 1 / 2) ** 2) * sympy.pi ** 3) / α ** 2
 q = lambda zi: a2 * 4 * (zi ** 2) / (l ** 2)
 
+hx = 1 / 10
+x_list = np.arange(0.0, l + hx, hx)
 
-def w_n(z, φ, time=1, x=12, hx=1 / 10):
+
+def w_n(z, φ, time=1):
     def P_n(zi, φi, t):
         return (φi * 4 * (1 - sympy.exp(-1 * ((q(zi) + aRc) * t))) / (q(zi) + aRc)) / (c * l)
 
@@ -63,17 +67,15 @@ def w_n(z, φ, time=1, x=12, hx=1 / 10):
             s.append(N(P_n(zi, φi, ti) * sympy.cos(((2 * zi / l) * (x - l / 2)))))
         return sum(s)
 
-    x_list = np.arange(0.0, x + hx, hx)
-
     s = list(map(lambda xi: w(z, φ, time, xi), x_list))
 
-    return [s, x_list]
+    return s
 
 
-def plotter(wi, ti):
+def plotter(results):
     fig, ax = plt.subplots()
-
-    ax.plot(ti, wi)
+    for i in results:
+        ax.plot(x_list, i)
     ax.grid()
 
     #  Добавляем подписи к осям:
@@ -82,8 +84,7 @@ def plotter(wi, ti):
     plt.show()
 
 
-if __name__ == '__main__':
-    n = 238
+def solutions(n, t):
     while True:
         z = half_method(n, 0.000001, np.pi / 2)
         φ = φ_n(z)
@@ -91,10 +92,29 @@ if __name__ == '__main__':
         df.index = df.index + 1
         # print(df.to_string())
         df.to_csv('values.csv')
-        [solution, x_i] = w_n(z, φ, 60, 12)
+        solution = w_n(z, φ, t)
         if N(Rn(n + 1)) / sum(solution) < eps:
             break
         n += 1
+    return solution
 
-    print("n = ", n)
-    plotter(solution, x_i)
+
+if __name__ == '__main__':
+    numOfThreads = 7
+    results = []
+    pool = ThreadPool(numOfThreads)
+    results.append(pool.apply_async(solutions, (350, 500)))
+    results.append(pool.apply_async(solutions, (300, 400)))
+    results.append(pool.apply_async(solutions, (300, 350)))
+    results.append(pool.apply_async(solutions, (238, 250)))
+    results.append(pool.apply_async(solutions, (120, 200)))
+    results.append(pool.apply_async(solutions, (50, 150)))
+    results.append(pool.apply_async(solutions, (30, 100)))
+
+    results = [r.get() for r in results]
+
+    pool.close()
+    pool.join()
+
+    print(results)
+    plotter(results)
