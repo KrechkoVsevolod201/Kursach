@@ -12,7 +12,7 @@ c = 1.65  # Дж/(cм^3*град)
 l = 12  # см
 T = 250  # с
 k = 0.59  # Вт/(см*град)
-R = 1
+R = 0.1
 
 
 def φ_n(z: list) -> np.array:
@@ -85,31 +85,27 @@ def plotter(results):
 
 
 def solutions(n, t):
-    while True:
-        z = half_method(n, 0.000001, np.pi / 2)
-        φ = φ_n(z)
-        df = pd.DataFrame({'z': z, 'φ': φ})
-        df.index = df.index + 1
-        # print(df.to_string())
-        df.to_csv('values.csv')
-        solution = w_n(z, φ, t)
-        if N(Rn(n + 1)) / sum(solution) < eps:
-            break
-        n += 1
+    #while True:
+    z = half_method(n, 0.000001, np.pi / 2)
+    φ = φ_n(z)
+    df = pd.DataFrame({'z': z, 'φ': φ})
+    df.index = df.index + 1
+    # print(df.to_string())
+    df.to_csv('values.csv')
+    solution = w_n(z, φ, t)
+    # if N(Rn(n + 1)) / sum(solution) < eps:
+    #     break
+    # n += 1
     return solution
 
 
 if __name__ == '__main__':
     numOfThreads = 7
+    n, t = 100, 60
     results = []
     pool = ThreadPool(numOfThreads)
-    results.append(pool.apply_async(solutions, (350, 500)))
-    results.append(pool.apply_async(solutions, (300, 400)))
-    results.append(pool.apply_async(solutions, (300, 350)))
-    results.append(pool.apply_async(solutions, (238, 250)))
-    results.append(pool.apply_async(solutions, (120, 200)))
-    results.append(pool.apply_async(solutions, (50, 150)))
-    results.append(pool.apply_async(solutions, (30, 100)))
+    for i in range(numOfThreads):
+        results.append(pool.apply_async(solutions, (n + 50*i, t + 50 * (i))))
 
     results = [r.get() for r in results]
 
