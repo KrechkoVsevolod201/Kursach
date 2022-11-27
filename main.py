@@ -12,7 +12,7 @@ c = 1.65  # Дж/(cм^3*град)
 l = 12  # см
 T = 250  # с
 k = 0.59  # Вт/(см*град)
-R = 1
+R = 0.1
 
 
 def φ_n(z: list) -> np.array:
@@ -77,7 +77,6 @@ def plotter(results):
         ax.plot(x_list, i)
     ax.grid()
 
-    #  Добавляем подписи к осям:
     ax.set_xlabel('Координата Х, См')
     ax.set_ylabel('Температура w, Кельвин')
     plt.show()
@@ -103,11 +102,11 @@ if __name__ == '__main__':
     numOfThreads = 5
     results = []
     pool = ThreadPool(numOfThreads)
-    results.append(pool.apply_async(solutions, (300, 350)))
     results.append(pool.apply_async(solutions, (238, 250)))
     results.append(pool.apply_async(solutions, (120, 200)))
     results.append(pool.apply_async(solutions, (50, 150)))
     results.append(pool.apply_async(solutions, (30, 100)))
+    results.append(pool.apply_async(solutions, (30, 50)))
 
     results = [r.get() for r in results]
 
