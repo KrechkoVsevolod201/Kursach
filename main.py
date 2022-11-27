@@ -47,17 +47,16 @@ def half_method(n: int, a1: float, b1: float) -> np.ndarray:
     return np.array(z)
 
 
-a2 = (k / c) ** 2
-aRc = (2 * α / R) / (c ** 2)
-Rn = lambda n: 128 / ((c * l ** 2) * ((n + 1 / 2) ** 2) * sympy.pi ** 3) / α ** 2
-q = lambda zi: a2 * 4 * (zi ** 2) / (l ** 2)
-
 hx = 1 / 10
 x_list = np.arange(0.0, l + hx, hx)
 
 
 def w_n(z, φ, time=1):
     def P_n(zi, φi, t):
+        a2 = (k / c) ** 2
+        aRc = (2 * α / R) / (c ** 2)
+        q = lambda zi: a2 * 4 * (zi ** 2) / (l ** 2)
+
         return (φi * 4 * (1 - sympy.exp(-1 * ((q(zi) + aRc) * t))) / (q(zi) + aRc)) / (c * l)
 
     def w(z, φ, ti, x):
@@ -85,26 +84,25 @@ def plotter(results):
 
 
 def solutions(n, t):
-    while True:
-        z = half_method(n, 0.000001, np.pi / 2)
-        φ = φ_n(z)
-        df = pd.DataFrame({'z': z, 'φ': φ})
-        df.index = df.index + 1
-        # print(df.to_string())
-        df.to_csv('values.csv')
-        solution = w_n(z, φ, t)
-        if N(Rn(n + 1)) / sum(solution) < eps:
-            break
-        n += 1
+    Rn = lambda n: 128 / ((c * l ** 2) * ((n + 1 / 2) ** 2) * sympy.pi ** 3) / α ** 2
+    # while True:
+    z = half_method(n, 0.000001, np.pi / 2)
+    φ = φ_n(z)
+    df = pd.DataFrame({'z': z, 'φ': φ})
+    df.index = df.index + 1
+    # print(df.to_string())
+    df.to_csv('values.csv')
+    solution = w_n(z, φ, t)
+    # if N(Rn(n + 1)) / sum(solution) < eps:
+    #     break
+    # n += 1
     return solution
 
 
 if __name__ == '__main__':
-    numOfThreads = 7
+    numOfThreads = 5
     results = []
     pool = ThreadPool(numOfThreads)
-    results.append(pool.apply_async(solutions, (350, 500)))
-    results.append(pool.apply_async(solutions, (300, 400)))
     results.append(pool.apply_async(solutions, (300, 350)))
     results.append(pool.apply_async(solutions, (238, 250)))
     results.append(pool.apply_async(solutions, (120, 200)))
