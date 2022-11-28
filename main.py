@@ -47,6 +47,11 @@ def half_method(n: int, a1: float, b1: float) -> np.ndarray:
     return np.array(z)
 
 
+a2 = (k / c) ** 2
+aRc = (2 * α / R) / (c ** 2)
+Rn = lambda n: 128 / ((c * l ** 2) * ((n + 1 / 2) ** 2) * sympy.pi ** 3) / α ** 2
+q = lambda zi: a2 * 4 * (zi ** 2) / (l ** 2)
+
 hx = 1 / 10
 x_list = np.arange(0.0, l + hx, hx)
 
@@ -99,14 +104,16 @@ def solutions(n, t):
 
 
 if __name__ == '__main__':
-    numOfThreads = 5
+    numOfThreads = 7
     results = []
     pool = ThreadPool(numOfThreads)
+    results.append(pool.apply_async(solutions, (350, 500)))
+    results.append(pool.apply_async(solutions, (300, 400)))
+    results.append(pool.apply_async(solutions, (300, 350)))
     results.append(pool.apply_async(solutions, (238, 250)))
     results.append(pool.apply_async(solutions, (120, 200)))
     results.append(pool.apply_async(solutions, (50, 150)))
     results.append(pool.apply_async(solutions, (30, 100)))
-    results.append(pool.apply_async(solutions, (30, 50)))
 
     results = [r.get() for r in results]
 
