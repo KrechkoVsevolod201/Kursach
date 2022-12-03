@@ -1,8 +1,9 @@
+import math
 import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-from numba import njit, prange
+from numba import njit, prange, float64, int64
 
 eps = 0.00001
 
@@ -80,30 +81,75 @@ def w_n(z, φ, time=T, flag='x', x=l / 2):
 
 @njit(cache=True, nogil=True)
 def solutions(n, t=T, flag='x', x=l / 2):
+    z = half_method(n, 0.000001, np.pi / 2)
+    φ = φ_n(z)
+    solution = w_n(z, φ, t, flag=flag, x=x)
+
+    return solution
+
+
+@njit(nogil=True, cache=True)
+def w_l2T(z, φ, time=T, x=l / 2):
+    def P_n(zi, φi, t):
+        a2 = (k / c) ** 2
+        aRc = (2 * α / R) / (c ** 2)
+
+        return (φi * 4 * (1 - np.exp(-1 * ((a2 * 4 * (zi ** 2) / (l ** 2) + aRc) * t))) / (
+                a2 * 4 * (zi ** 2) / (l ** 2) + aRc)) / (c * l)
+
+    def w(z, φ, ti, x):
+        s = list()
+        for i in prange(len(z)):
+            s.append(P_n(z[i], φ[i], ti) * np.cos(((2 * z[i] / l) * (x - l / 2))))
+
+        return np.sum(np.array(s))
+
+    sol = w(z, φ, time, x)
+
+    return sol
+
+
+@njit(float64(float64, int64))
+def truncate(f, accuracy):
+    return math.floor(f * 10 ** accuracy) / 10 ** accuracy
+
+
+@njit(fastmath=True, nogil=True, cache=True)
+def solutionN(n, epsilon=10 ** (-2), accuracy=2):
     def Rn(n):
         return 128 / ((c * l ** 2) * ((n + 1 / 2) ** 2) * np.pi ** 3) / α ** 2
 
-    # while True:
-    z = half_method(n, 0.000001, np.pi / 2)
-    φ = φ_n(z)
-    # df = pd.DataFrame({'z': z, 'φ': φ})
-    # df.index = df.index + 1
-    # print(df.to_string())
-    # df.to_csv('values.csv')
-    solution = w_n(z, φ, t, flag=flag, x=x)
-    # if Rn(n + 1) / sum(solution) < eps:
-    #     break
-    # n += 1
-    # print(t, n)
-    return solution
+    while True:
+        z = half_method(n, 0.000001, np.pi / 2)
+        φ = φ_n(z)
+
+        solution_with_n = w_l2T(z, φ)
+        if Rn(n + 1) <= epsilon:
+            break
+        n += 1
+    solution_with_n = truncate(solution_with_n, accuracy)
+    N: int64
+    N = n
+    while True:
+        N -= 1
+        z = half_method(N, 0.000001, np.pi / 2)
+        φ = φ_n(z)
+        solution_with_N = truncate(w_l2T(z, φ), accuracy)
+
+        if np.abs(solution_with_n - solution_with_N) > epsilon:
+            N += 1
+            break
+
+    return [n, N]
+
 
 def plotter(results_x, results_t):
     plt.figure(1)
     line = list()
     for key, value in results_x.items():
         line += plt.plot(x_list, value, label="t=" + str(key) + " с")
-    plt.xlabel('Координата Х, См')
-    plt.ylabel('Температура w, Кельвин')
+    plt.xlabel('Координата Х, cм')
+    plt.ylabel('Температура w, К')
     plt.legend(line, [l.get_label() for l in line], loc=0)
     plt.grid()
 
@@ -111,8 +157,8 @@ def plotter(results_x, results_t):
     line = list()
     for key, value in results_t.items():
         line += plt.plot(time_list, value, label="x=" + str(key) + " см")
-    plt.xlabel('Время T, секунда')
-    plt.ylabel('Температура w, Кельвин')
+    plt.xlabel('Время T, с')
+    plt.ylabel('Температура w, К')
     plt.legend(line, [l.get_label() for l in line], loc=0)
     plt.grid()
 
@@ -120,8 +166,7 @@ def plotter(results_x, results_t):
 
 
 if __name__ == '__main__':
-    t0 = time.time()
-    n = 50
+    n = 10
     t = 5
     numOfThreads = 8
     results_x = {}
@@ -131,9 +176,9 @@ if __name__ == '__main__':
         results_x[(t + 35 * i)] = solutions(n + 35 * i, t + 35 * i)
     for i in prange(numOfThreads - 1):
         results_t[i] = solutions(n, flag='t', x=i)
-
-    t1 = time.time()
-    total = t1 - t0
-    print(total)
-
     plotter(results_x, results_t)
+
+    for i in range(2, 9):
+        solN = solutionN(n, epsilon=10 ** (-i), accuracy=i)
+        print(f"Для epsilon: 10**(-{i})", " n=", solN[0], "N=", solN[1])
+        n = solN[0]
