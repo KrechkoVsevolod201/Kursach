@@ -15,13 +15,13 @@ k = 0.59  # Вт/(см*град)
 R = 0.1
 
 
-@njit(cache=True, nogil=True)
+@njit(nogil=True)
 def φ_n(z) -> np.array:
     x1, x2 = 6, 8
     return 4 * 16 * (np.sin((x2 - l / 2) * 2 * z / l) - np.sin((x1 - l / 2) * 2 * z / l)) / (2 * z + np.sin(2 * z))
 
 
-@njit(cache=True, nogil=True)
+@njit(nogil=True)
 def half_method(n: int, a1: float, b1: float) -> np.ndarray:
     z = list()
 
@@ -52,7 +52,7 @@ ht = 1 / 10
 time_list = np.arange(0.0, T + ht, ht)
 
 
-@njit(nogil=True, cache=True)
+@njit(nogil=True)
 def w_n(z, φ, time=T, flag='x', x=l / 2):
     def P_n(zi, φi, t):
         a2 = (k / c) ** 2
@@ -79,7 +79,7 @@ def w_n(z, φ, time=T, flag='x', x=l / 2):
     return sol
 
 
-@njit(cache=True, nogil=True)
+@njit(nogil=True)
 def solutions(n, t=T, flag='x', x=l / 2):
     z = half_method(n, 0.000001, np.pi / 2)
     φ = φ_n(z)
@@ -88,7 +88,7 @@ def solutions(n, t=T, flag='x', x=l / 2):
     return solution
 
 
-@njit(nogil=True, cache=True)
+@njit(nogil=True)
 def w_l2T(z, φ, time=T, x=l / 2):
     def P_n(zi, φi, t):
         a2 = (k / c) ** 2
@@ -114,7 +114,7 @@ def truncate(f, accuracy):
     return math.floor(f * 10 ** accuracy) / 10 ** accuracy
 
 
-@njit(fastmath=True, nogil=True, cache=True)
+@njit(fastmath=True, nogil=True)
 def solutionN(n, epsilon=10 ** (-2), accuracy=2):
     def Rn(n):
         return 128 / ((c * l ** 2) * ((n + 1 / 2) ** 2) * np.pi ** 3) / α ** 2
@@ -177,8 +177,3 @@ if __name__ == '__main__':
     for i in prange(numOfThreads - 1):
         results_t[i] = solutions(n, flag='t', x=i)
     plotter(results_x, results_t)
-
-    for i in range(2, 9):
-        solN = solutionN(n, epsilon=10 ** (-i), accuracy=i)
-        print(f"Для epsilon: 10**(-{i})", " n=", solN[0], "N=", solN[1])
-        n = solN[0]
