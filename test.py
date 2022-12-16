@@ -1,179 +1,69 @@
+import dearpygui.dearpygui as dpg
 import math
 import time
+import collections
+import threading
+import pdb
 
-import matplotlib.pyplot as plt
-import numpy as np
-from numba import njit, prange, float64, int64
+nsamples = 100
 
-eps = 0.00001
+global data_y
+global data_x
+# Can use collections if you only need the last 100 samples
+# data_y = collections.deque([0.0, 0.0],maxlen=nsamples)
+# data_x = collections.deque([0.0, 0.0],maxlen=nsamples)
 
-α = 0.002  # Вт/(см^2*град)
-c = 1.65  # Дж/(cм^3*град)
-l = 12  # см
-T = 250  # с
-k = 0.59  # Вт/(см*град)
-R = 0.1
-
-
-@njit(nogil=True)
-def φ_n(z) -> np.array:
-    x1, x2 = 6, 8
-    return 4 * 16 * (np.sin((x2 - l / 2) * 2 * z / l) - np.sin((x1 - l / 2) * 2 * z / l)) / (2 * z + np.sin(2 * z))
+# Use a list if you need all the data.
+# Empty list of nsamples should exist at the beginning.
+# Theres a cleaner way to do this probably.
+data_y = [0.0] * nsamples
+data_x = [0.0] * nsamples
 
 
-@njit(nogil=True)
-def half_method(n: int, a1: float, b1: float) -> np.ndarray:
-    z = list()
-
-    def find_c(a: float, b: float) -> float:
-        G = α / (c * l)
-        fz = lambda z: (np.tan(z) - G / z)
-        root = (a + b) / 2
-        while np.abs(a - b) > eps:
-            if (fz(root) * fz(a)) < 0:
-                b = root
-            else:
-                a = root
-            root = (a + b) / 2
-        return root
-
-    while n > 0:
-        root = find_c(a1, b1)
-        z.append(root)
-        a1 += np.pi
-        b1 += np.pi
-        n -= 1
-    return np.array(z)
-
-
-hx = 1 / 10
-x_list = np.arange(0.0, l + hx, hx)
-ht = 1 / 10
-time_list = np.arange(0.0, T + ht, ht)
-
-
-@njit(nogil=True)
-def w_n(z, φ, time=T, flag='x', x=l / 2):
-    def P_n(zi, φi, t):
-        a2 = (k / c) ** 2
-        aRc = (2 * α / R) / (c ** 2)
-
-        return (φi * 4 * (1 - np.exp(-1 * ((a2 * 4 * (zi ** 2) / (l ** 2) + aRc) * t))) / (
-                a2 * 4 * (zi ** 2) / (l ** 2) + aRc)) / (c * l)
-
-    def w(z, φ, ti, x):
-        s = list()
-        for i in prange(len(z)):
-            s.append(P_n(z[i], φ[i], ti) * np.cos(((2 * z[i] / l) * (x - l / 2))))
-
-        return np.sum(np.array(s))
-
-    sol = []
-    if flag == 'x':
-        for i in x_list:
-            sol.append(w(z, φ, time, i))
-    elif flag == 't':
-        for i in time_list:
-            sol.append(w(z, φ, i, x))
-
-    return sol
-
-
-@njit(nogil=True)
-def solutions(n, t=T, flag='x', x=l / 2):
-    z = half_method(n, 0.000001, np.pi / 2)
-    φ = φ_n(z)
-    solution = w_n(z, φ, t, flag=flag, x=x)
-
-    return solution
-
-
-@njit(nogil=True)
-def w_l2T(z, φ, time=T, x=l / 2):
-    def P_n(zi, φi, t):
-        a2 = (k / c) ** 2
-        aRc = (2 * α / R) / (c ** 2)
-
-        return (φi * 4 * (1 - np.exp(-1 * ((a2 * 4 * (zi ** 2) / (l ** 2) + aRc) * t))) / (
-                a2 * 4 * (zi ** 2) / (l ** 2) + aRc)) / (c * l)
-
-    def w(z, φ, ti, x):
-        s = list()
-        for i in prange(len(z)):
-            s.append(P_n(z[i], φ[i], ti) * np.cos(((2 * z[i] / l) * (x - l / 2))))
-
-        return np.sum(np.array(s))
-
-    sol = w(z, φ, time, x)
-
-    return sol
-
-
-@njit(float64(float64, int64))
-def truncate(f, accuracy):
-    return math.floor(f * 10 ** accuracy) / 10 ** accuracy
-
-
-@njit(fastmath=True, nogil=True)
-def solutionN(n, epsilon=10 ** (-2), accuracy=2):
-    def Rn(n):
-        return 128 / ((c * l ** 2) * ((n + 1 / 2) ** 2) * np.pi ** 3) / α ** 2
-
+def update_data():
+    sample = 1
+    t0 = time.time()
+    frequency = 1.0
     while True:
-        z = half_method(n, 0.000001, np.pi / 2)
-        φ = φ_n(z)
+        # Get new data sample. Note we need both x and y values
+        # if we want a meaningful axis unit.
+        t = time.time() - t0
+        y = math.sin(2.0 * math.pi * frequency * t)
+        data_x.append(t)
+        data_y.append(y)
 
-        solution_with_n = w_l2T(z, φ)
-        if Rn(n + 1) <= epsilon:
-            break
-        n += 1
-    solution_with_n = truncate(solution_with_n, accuracy)
-    N: int64
-    N = n
-    while True:
-        N -= 1
-        z = half_method(N, 0.000001, np.pi / 2)
-        φ = φ_n(z)
-        solution_with_N = truncate(w_l2T(z, φ), accuracy)
+        # set the series x and y to the last nsamples
+        dpg.set_value('series_tag', [list(data_x[-nsamples:]), list(data_y[-nsamples:])])
+        dpg.fit_axis_data('x_axis')
+        dpg.fit_axis_data('y_axis')
 
-        if np.abs(solution_with_n - solution_with_N) > epsilon:
-            N += 1
-            break
-
-    return [n, N]
+        time.sleep(0.01)
+        sample = sample + 1
 
 
-def plotter(results_x, results_t):
-    plt.figure(1)
-    line = list()
-    for key, value in results_x.items():
-        line += plt.plot(x_list, value, label="t=" + str(key) + " с")
-    plt.xlabel('Координата Х, cм')
-    plt.ylabel('Температура w, К')
-    plt.legend(line, [l.get_label() for l in line], loc=0)
-    plt.grid()
+dpg.create_context()
+with dpg.window(label='Tutorial', tag='win', width=800, height=600):
+    with dpg.plot(label='Line Series', height=-1, width=-1):
+        # optionally create legend
+        dpg.add_plot_legend()
 
-    plt.figure(2)
-    line = list()
-    for key, value in results_t.items():
-        line += plt.plot(time_list, value, label="x=" + str(key) + " см")
-    plt.xlabel('Время T, с')
-    plt.ylabel('Температура w, К')
-    plt.legend(line, [l.get_label() for l in line], loc=0)
-    plt.grid()
+        # REQUIRED: create x and y axes, set to auto scale.
+        x_axis = dpg.add_plot_axis(dpg.mvXAxis, label='x', tag='x_axis')
+        y_axis = dpg.add_plot_axis(dpg.mvYAxis, label='y', tag='y_axis')
 
-    plt.show()
+        # series belong to a y axis. Note the tag name is used in the update
+        # function update_data
+        dpg.add_line_series(x=list(data_x), y=list(data_y),
+                            label='Temp', parent='y_axis',
+                            tag='series_tag')
 
+dpg.create_viewport(title='Custom Title', width=850, height=640)
 
-if __name__ == '__main__':
-    n = 10
-    t = 5
-    numOfThreads = 8
-    results_x = {}
-    results_t = {}
+dpg.setup_dearpygui()
+dpg.show_viewport()
 
-    for i in prange(numOfThreads):
-        results_x[(t + 35 * i)] = solutions(n + 35 * i, t + 35 * i)
-    for i in prange(numOfThreads - 1):
-        results_t[i] = solutions(n, flag='t', x=i)
-    plotter(results_x, results_t)
+thread = threading.Thread(target=update_data)
+thread.start()
+dpg.start_dearpygui()
+
+dpg.destroy_context()

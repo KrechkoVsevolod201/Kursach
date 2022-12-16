@@ -12,13 +12,13 @@ from numba import njit, prange, float64, int64
 # k = 0.59  # Вт/(см*град)
 # R = 0.1
 
-@njit(cache=True, nogil=True)
-def φ_n(z,l) -> np.array:
+@njit(nogil=True)
+def φ_n(z, l) -> np.array:
     x1, x2 = 6, 8
     return 4 * 16 * (np.sin((x2 - l / 2) * 2 * z / l) - np.sin((x1 - l / 2) * 2 * z / l)) / (2 * z + np.sin(2 * z))
 
 
-@njit(cache=True, nogil=True)
+@njit(nogil=True)
 def half_method(n: int, a1: float, b1: float, eps, l, c, α) -> np.ndarray:
     z = list()
 
@@ -43,8 +43,8 @@ def half_method(n: int, a1: float, b1: float, eps, l, c, α) -> np.ndarray:
     return np.array(z)
 
 
-@njit(nogil=True, cache=True)
-def w_n(z, φ, time, c,  k, R, l, α, x_list, x, time_list, flag='x'):
+@njit(nogil=True)
+def w_n(z, φ, time, c, k, R, l, α, x_list, x, time_list, flag='x'):
     def P_n(zi, φi, t):
         a2 = (k / c) ** 2
         aRc = (2 * α / R) / (c ** 2)
@@ -70,13 +70,14 @@ def w_n(z, φ, time, c,  k, R, l, α, x_list, x, time_list, flag='x'):
     return sol
 
 
-@njit(cache=True, nogil=True)
+@njit(nogil=True)
 def solutions(n, t, α, c, l, k, R, eps, x_list, time_list, x, flag='x'):
     z = half_method(n, 0.000001, np.pi / 2, eps, l, c, α)
-    φ = φ_n(z,l)
+    φ = φ_n(z, l)
+
     solution = w_n(z=z, φ=φ, α=α, c=c, l=l, k=k, R=R, time=t, flag=flag, x=x, x_list=x_list, time_list=time_list)
 
-    return solution
+    return solution, z, φ
 
 
 # @njit(nogil=True, cache=True)
@@ -157,26 +158,25 @@ def truncate(f, accuracy):
 #     plt.show()
 
 
-def m(α, c, l, T, k, R, eps):
-    print((α, c, l, T, k, R, eps))
+def m(n, α, c, l, T, k, R, eps):
     hx = 1 / 10
     x_list = np.arange(0.0, l + hx, hx)
     ht = 1 / 10
     time_list = np.arange(0.0, T + ht, ht)
 
-    n = 10
     t = 5
     numOfThreads = 8
     results_x = {}
     results_t = {}
 
     for i in prange(numOfThreads):
-        results_x[(t + 35 * i)] = solutions(n=n + 35 * i, t=t + 35 * i, α=α, c=c, l=l, k=k, R=R, eps=eps, x=l / 2,
-                                            flag='x',
-                                            x_list=x_list, time_list=time_list)
+        [results_x[(t + 35 * i)], z1, φ1] = solutions(n=n, t=t + 35 * i, α=α, c=c, l=l, k=k, R=R, eps=eps,
+                                                      x=l / 2,
+                                                      flag='x',
+                                                      x_list=x_list, time_list=time_list)
     for i in prange(numOfThreads - 1):
-        results_t[i] = solutions(n=n, t=T, α=α, c=c, l=l, k=k, R=R, eps=eps, flag='t', x=i, x_list=x_list,
-                                 time_list=time_list)
+        [results_t[i], z1, φ1] = solutions(n=n, t=T, α=α, c=c, l=l, k=k, R=R, eps=eps, flag='t', x=i, x_list=x_list,
+                                           time_list=time_list)
     # plotter(results_x, results_t)
     # N = np.array([1140, 3600, 11410, 36090, 114150, 360980, 1141520])
     # for i in prange(2, 9):
@@ -184,4 +184,4 @@ def m(α, c, l, T, k, R, eps):
     #     s1, s2 = solutionN(n, epsilon=10 ** (-i), accuracy=i)
     #     print(f"Для epsilon: 10**(-{i})", " n=", s1, "N=", s2)
 
-    return results_x, x_list, results_t, time_list
+    return results_x, x_list, results_t, time_list, z1, φ1
